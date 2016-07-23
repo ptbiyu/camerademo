@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 普通无焦点状态 -->
+    <item android:drawable="@drawable/camera_picture_ratio_11_ic_normal" android:state_pressed="false" />
+    <!-- 点击状态 -->
+    <item android:drawable="@drawable/camera_picture_ratio_11_ic_pressed" android:state_pressed="true" />
+</selector>
+

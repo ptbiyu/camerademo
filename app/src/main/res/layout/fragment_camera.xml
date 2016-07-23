@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <com.meitu.camera.ui.PreviewFrameLayout
+        android:id="@+id/camera_previewframe_layout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <com.meitu.camera.ui.FocusLayout
+            android:id="@+id/camera_focous_layout"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"></com.meitu.camera.ui.FocusLayout>
+
+        <com.meitu.camera.ui.FaceView
+            android:id="@+id/camera_faceview"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+    </com.meitu.camera.ui.PreviewFrameLayout>
+
+
+    <!-- 顶部 -->
+
+    <RelativeLayout
+        android:id="@+id/rl_top_bar"
+        android:layout_width="fill_parent"
+        android:layout_height="44dp"
+        android:layout_alignParentTop="true"
+        android:background="@color/white">
+
+
+        <ImageView
+            android:id="@+id/iv_camera_back"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentLeft="true"
+            android:layout_centerVertical="true"
+            android:layout_marginLeft="12dp"
+            android:src="@drawable/camera_back_iv_ic_sel" />
+
+        <RelativeLayout
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_toLeftOf="@+id/iv_switch_camera"
+            android:layout_marginRight="30dp">
+
+            <ImageView
+                android:id="@+id/iv_camera_flash"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerInParent="true"
+                android:src="@drawable/camera_flash_off_iv_ic_sel" />
+
+        </RelativeLayout>
+
+        <ImageView
+            android:id="@+id/iv_switch_camera"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentRight="true"
+            android:layout_centerVertical="true"
+            android:layout_marginRight="12dip"
+            android:src="@drawable/camera_switch_iv_ic_sel" />
+    </RelativeLayout>
+
+
+    <!-- 底部 -->
+    <LinearLayout
+        android:id="@+id/rl_bottom_bar"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/camera_bottom_min_height"
+        android:layout_alignParentBottom="true"
+        android:background="@color/white"
+        android:orientation="vertical">
+
+        <RelativeLayout
+            android:id="@+id/rl_camera_bar"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+
+            <ImageView
+                android:id="@+id/iv_album"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_alignParentLeft="true"
+                android:layout_centerVertical="true"
+                android:layout_marginLeft="12dp"
+                android:scaleType="centerCrop"
+                android:src="@drawable/camera_album_ic_sel" />
+
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_toLeftOf="@+id/iv_take_picture"
+                android:layout_toRightOf="@+id/iv_album">
+
+                <ImageView
+                    android:id="@+id/iv_switch_picture_ratio"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerInParent="true"
+                    android:src="@drawable/camera_picture_ratio_43_iv_ic_sel" />
+
+            </RelativeLayout>
+
+
+            <ImageView
+                android:id="@+id/iv_take_picture"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerInParent="true"
+                android:src="@drawable/camera_take_picture_iv_ic_sel" />
+        </RelativeLayout>
+    </LinearLayout>
+
+</RelativeLayout>
