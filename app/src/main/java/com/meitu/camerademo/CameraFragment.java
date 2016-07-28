@@ -9,6 +9,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.Switch;
+import android.widget.Toast;
 
 import com.meitu.camera.CameraSize;
 import com.meitu.camera.filter.FilterCameraFragment;
@@ -50,6 +51,8 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
     private ArrayList<OnlineMaterialsParam> mOnlineMaterialsParams;
 
     private int mCurrentFilterId;
+
+    private int mCurrentBeautyLevel = -1;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -114,7 +117,7 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
     public com.meitu.realtime.param.EffectParam initEffectParam() {
         //初始化时没有任何效果
         mFilterparameter = new FilterParamater();
-        mEffectParam = new EffectParam(0, 0, new MTFilterOperation(true, false, false),
+        mEffectParam = new EffectParam(0, 0, new MTFilterOperation(false, false, false),
                 EffectParam.RealFilterTargetType.MT_TAKE_PHOTO,0.8f);
         return mEffectParam;
     }
@@ -148,10 +151,12 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
     }
 
     private void setCameraBeautyLevel() {
+        mCurrentBeautyLevel = (mCurrentBeautyLevel + 1)%7;
+        Toast.makeText(mActivity,"Beauty Level:"+(mCurrentBeautyLevel+1),Toast.LENGTH_LONG).show();
         mEffectParam = new EffectParam(0, 0, new MTFilterOperation(true, false, false),
                         EffectParam.RealFilterTargetType.MT_TAKE_PHOTO,0.8f);
         changeFilter(mEffectParam);
-        mFilterparameter.int_value = 6;
+        mFilterparameter.int_value = mCurrentBeautyLevel;
         changeFilterParamater(mFilterparameter);
     }
 
