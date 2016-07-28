@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content" >
+
+    <ImageView 
+        android:id="@+id/imgView_outer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/camera_demo_common_focus_outer"
+        android:layout_centerInParent="true"/>
+    <ImageView 
+        android:id="@+id/imgView_inner"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/camera_demo_common_focus_inner"
+        android:layout_centerInParent="true"/>
+
+</RelativeLayout>

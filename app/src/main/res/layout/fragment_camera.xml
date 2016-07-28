@@ -8,10 +8,10 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <com.meitu.camera.ui.FocusLayout
+        <com.meitu.camerademo.widget.CameraFocusView
             android:id="@+id/camera_focous_layout"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"></com.meitu.camera.ui.FocusLayout>
+            android:layout_height="match_parent" />
 
         <com.meitu.camera.ui.FaceView
             android:id="@+id/camera_faceview"
