@@ -151,6 +151,11 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
         mEffectParam =
             new EffectParam(getOnlineMaterialsParam(), new MTFilterOperation(true, true, true),
                 EffectParam.RealFilterTargetType.MT_TAKE_PHOTO);
+
+        //使用这个方法切换滤镜没有暗角和虚化效果
+      /*  mEffectParam =
+                new EffectParam(mCurrentFilterId,0, new MTFilterOperation(true, true, true),
+                        EffectParam.RealFilterTargetType.MT_TAKE_PHOTO,1f);*/
         changeFilter(mEffectParam);
     }
 
