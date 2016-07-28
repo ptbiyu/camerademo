@@ -102,6 +102,7 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
                 changeFlashMode();
                 break;
             case R.id.iv_switch_camera:
+                switchCamera();
                 break;
         }
     }
