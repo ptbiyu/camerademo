@@ -50,6 +50,8 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
      */
     private ArrayList<OnlineMaterialsParam> mOnlineMaterialsParams;
 
+    private int[] mFliterIds = {538, 118, 363};
+    private int mCurrentFilterIndex = -1;
     private int mCurrentFilterId;
 
     private int mCurrentBeautyLevel = -1;
@@ -115,10 +117,11 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
 
     @Override
     public com.meitu.realtime.param.EffectParam initEffectParam() {
-        //初始化时没有任何效果
+        // 初始化时没有任何效果
         mFilterparameter = new FilterParamater();
-        mEffectParam = new EffectParam(0, 0, new MTFilterOperation(false, false, false),
-                EffectParam.RealFilterTargetType.MT_TAKE_PHOTO,0.8f);
+        mEffectParam =
+            new EffectParam(0, 0, new MTFilterOperation(false, false, false),
+                EffectParam.RealFilterTargetType.MT_TAKE_PHOTO, 0.8f);
         return mEffectParam;
     }
 
@@ -144,17 +147,19 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
     }
 
     private void setCameraBeautyFilter() {
-        mCurrentFilterId = 538;
-        mEffectParam = new EffectParam(getOnlineMaterialsParam(), new MTFilterOperation(true, false, false),
+        mCurrentFilterId = mFliterIds[(++mCurrentFilterIndex) % mFliterIds.length];
+        mEffectParam =
+            new EffectParam(getOnlineMaterialsParam(), new MTFilterOperation(true, true, true),
                 EffectParam.RealFilterTargetType.MT_TAKE_PHOTO);
         changeFilter(mEffectParam);
     }
 
     private void setCameraBeautyLevel() {
-        mCurrentBeautyLevel = (mCurrentBeautyLevel + 1)%7;
-        Toast.makeText(mActivity,"Beauty Level:"+(mCurrentBeautyLevel+1),Toast.LENGTH_LONG).show();
-        mEffectParam = new EffectParam(0, 0, new MTFilterOperation(true, false, false),
-                        EffectParam.RealFilterTargetType.MT_TAKE_PHOTO,0.8f);
+        mCurrentBeautyLevel = (mCurrentBeautyLevel + 1) % 7;
+        Toast.makeText(mActivity, "Beauty Level:" + (mCurrentBeautyLevel + 1), Toast.LENGTH_LONG).show();
+        mEffectParam =
+            new EffectParam(0, 0, new MTFilterOperation(true, false, false),
+                EffectParam.RealFilterTargetType.MT_TAKE_PHOTO, 0.8f);
         changeFilter(mEffectParam);
         mFilterparameter.int_value = mCurrentBeautyLevel;
         changeFilterParamater(mFilterparameter);
@@ -181,7 +186,6 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
         }
         switchFlash(mCurFlashMode);
     }
-
 
     /**
      * 加载滤镜列表
