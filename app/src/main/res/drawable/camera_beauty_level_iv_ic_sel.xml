@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- 普通无焦点状态 -->
+    <item android:drawable="@drawable/camera_beauty_level_ic_normal" android:state_pressed="false" />
+    <!-- 选中状态 -->
+    <item android:drawable="@drawable/camera_beauty_level_ic_pressed" android:state_pressed="true" />
+
+</selector>
