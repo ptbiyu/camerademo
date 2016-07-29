@@ -3,12 +3,10 @@ package com.meitu.camerademo;
 import android.app.Activity;
 import android.hardware.Camera;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
-import android.widget.Switch;
 import android.widget.Toast;
 
 import com.meitu.camera.CameraSize;
@@ -16,6 +14,10 @@ import com.meitu.camera.filter.FilterCameraFragment;
 import com.meitu.camera.model.CameraConfig;
 import com.meitu.camera.model.CameraModel;
 import com.meitu.camera.model.CameraProcess;
+import com.meitu.camera.model.CameraSetting;
+import com.meitu.camera.ui.FaceView;
+import com.meitu.camerademo.face.FaceDectectFunction;
+import com.meitu.camerademo.face.IFaceDectectFunction;
 import com.meitu.realtime.param.EffectParam;
 import com.meitu.realtime.param.FilterParamater;
 import com.meitu.realtime.param.OnlineMaterialsParam;
@@ -34,6 +36,8 @@ import javax.xml.parsers.ParserConfigurationException;
 public class CameraFragment extends FilterCameraFragment implements View.OnClickListener {
 
     private ImageView mIvBack, mIvFlash, mIvCameraSwitch, mIvCameraLevel, mIvCameraFilter;
+
+    private FaceView mFaceView;
 
     private CommonCameraProcess mCommonCamearProcess;
 
@@ -56,6 +60,9 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
 
     private int mCurrentBeautyLevel = -1;
 
+    private FaceDectectFunction mFaceDectectFunction;
+
+
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_camera, container, false);
@@ -68,6 +75,24 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
     public void onAttach(Activity activity) {
         super.onAttach(activity);
         mActivity = activity;
+    }
+
+    @Override
+    public void onActivityCreated(Bundle bundle) {
+        super.onActivityCreated(bundle);
+        mFaceDectectFunction = new FaceDectectFunction(mActivity, mFaceView, new IFaceDectectFunction() {
+            @Override
+            public int getOrientation() {
+                return CameraFragment.this.getOrientation();
+            }
+        });
+        mFaceDectectFunction.startFaceDectect();
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        mFaceDectectFunction.stopFaceDectect();
     }
 
     private void findView(View view) {
@@ -85,6 +110,9 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
 
         mIvCameraFilter = (ImageView) view.findViewById(R.id.iv_camera_filters);
         mIvCameraFilter.setOnClickListener(this);
+
+        mFaceView = (FaceView) view.findViewById(R.id.camera_faceview);
+        mFaceView.initFaceDrawable(R.drawable.face_rect,R.drawable.face_rect);
     }
 
     @Override
@@ -286,12 +314,12 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
 
         @Override
         public void onPreviewFrame(byte[] bytes) {
-
+              mFaceDectectFunction.drain(bytes);
         }
 
         @Override
         public void onCameraOpenSucess() {
-
+            mFaceDectectFunction.initParam(CameraSetting.getOptimalCameraPreviewSize(isFrontCameraOpen()), isBackCameraOpen());
         }
 
         @Override
