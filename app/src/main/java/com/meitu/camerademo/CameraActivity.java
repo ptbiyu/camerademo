@@ -13,6 +13,7 @@ public class CameraActivity extends FragmentActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        //没有初始化美颜实时效果失效
         NativeLibrary.ndkInit(this);
         setContentView(R.layout.activity_camera);
         if (savedInstanceState ==null){

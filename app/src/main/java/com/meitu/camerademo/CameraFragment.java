@@ -35,7 +35,12 @@ import javax.xml.parsers.ParserConfigurationException;
  */
 public class CameraFragment extends FilterCameraFragment implements View.OnClickListener {
 
-    private ImageView mIvBack, mIvFlash, mIvCameraSwitch, mIvCameraLevel, mIvCameraFilter;
+    private static final int CAMERA_RATIO_1_1 = 1;
+    private static final int CAMERA_RATIO_4_3 = 2;
+    private static final int CAMERA_RATIO_FULL = 3;
+
+
+    private ImageView mIvBack, mIvFlash, mIvCameraSwitch, mIvCameraLevel, mIvCameraFilter,mIvCameraRationChange;
 
     private FaceView mFaceView;
 
@@ -61,6 +66,8 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
     private int mCurrentBeautyLevel = -1;
 
     private FaceDectectFunction mFaceDectectFunction;
+
+    private int mCurrentRatio = CAMERA_RATIO_4_3;
 
 
     @Override
@@ -113,6 +120,9 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
 
         mFaceView = (FaceView) view.findViewById(R.id.camera_faceview);
         mFaceView.initFaceDrawable(R.drawable.face_rect,R.drawable.face_rect);
+
+        mIvCameraRationChange = (ImageView) view.findViewById(R.id.iv_switch_picture_ratio);
+        mIvCameraRationChange.setOnClickListener(this);
     }
 
     @Override
@@ -171,9 +181,15 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
             case R.id.iv_camera_filters:
                 setCameraBeautyFilter();
                 break;
+            case R.id.iv_switch_picture_ratio:
+                changeCameraRatio();
+                break;
         }
     }
 
+    /**
+     * 设置美颜滤镜
+     */
     private void setCameraBeautyFilter() {
         mCurrentFilterId = mFliterIds[(++mCurrentFilterIndex) % mFliterIds.length];
         mEffectParam =
@@ -187,6 +203,9 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
         changeFilter(mEffectParam);
     }
 
+    /**
+     * 设置美颜等级
+     */
     private void setCameraBeautyLevel() {
         mCurrentBeautyLevel = (mCurrentBeautyLevel + 1) % 7;
         Toast.makeText(mActivity, "Beauty Level:" + (mCurrentBeautyLevel + 1), Toast.LENGTH_LONG).show();
@@ -198,6 +217,9 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
         changeFilterParamater(mFilterparameter);
     }
 
+    /**
+     * 切换闪光灯
+     */
     private void changeFlashMode() {
         switch (mCurFlashMode) {
             case Camera.Parameters.FLASH_MODE_OFF:
@@ -218,6 +240,26 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
                 break;
         }
         switchFlash(mCurFlashMode);
+    }
+
+    /**
+     * 切换照相机预览比例
+     */
+    private void changeCameraRatio() {
+        switch (mCurrentRatio){
+            case CAMERA_RATIO_1_1:
+                mCurrentRatio = CAMERA_RATIO_FULL;
+                mIvCameraRationChange.setImageResource(R.drawable.camera_picture_ratio_full_iv_ic_sel);
+                break;
+            case CAMERA_RATIO_4_3:
+                mIvCameraRationChange.setImageResource(R.drawable.camera_picture_ratio_11_iv_ic_sel);
+                mCurrentRatio = CAMERA_RATIO_1_1;
+                break;
+            case CAMERA_RATIO_FULL:
+                mIvCameraRationChange.setImageResource(R.drawable.camera_picture_ratio_43_iv_ic_sel);
+                mCurrentRatio = CAMERA_RATIO_4_3;
+                break;
+        }
     }
 
     /**
