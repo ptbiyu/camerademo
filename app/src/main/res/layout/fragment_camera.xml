@@ -108,14 +108,12 @@
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:background="@drawable/camera_album_ic_sel"
-                    android:padding="1dip"
                     android:scaleType="centerCrop" />
 
                 <ProgressBar
                     android:id="@+id/pb_save_image"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:layout_margin="1dip"
                     android:background="@color/color_80ff84ab"
                     android:visibility="gone"/>
 

@@ -29,6 +29,8 @@ import com.meitu.camera.util.ExifUtil;
 import com.meitu.camerademo.bean.PictureData;
 import com.meitu.camerademo.face.FaceDectectFunction;
 import com.meitu.camerademo.face.IFaceDectectFunction;
+import com.meitu.core.types.NativeBitmap;
+import com.meitu.core.util.CacheUtil;
 import com.meitu.library.util.device.DeviceUtils;
 import com.meitu.realtime.param.EffectParam;
 import com.meitu.realtime.param.FilterParamater;
@@ -39,6 +41,9 @@ import com.meitu.realtime.util.MTFilterOperation;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import javax.xml.parsers.ParserConfigurationException;
 
@@ -91,16 +96,28 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
 
     private int mCurrentRatio = CAMERA_RATIO_4_3;
 
+    /**
+     * 预览的宽高
+     */
     private int mPreviewWidth, mPreviewHeight;
+
+    /**
+     * 用来执行连拍的线程池
+     */
+    private ThreadPoolExecutor executor = null;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_camera, container, false);
         findView(view);
         loadOnlineMaterialsParams();
+        executor = new ThreadPoolExecutor(10,15,200, TimeUnit.MILLISECONDS,new ArrayBlockingQueue<Runnable>(10));
         return view;
     }
 
+    /**
+     * @param activity
+     */
     @Override
     public void onAttach(Activity activity) {
         super.onAttach(activity);
@@ -192,23 +209,37 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
      * @param rotation 屏幕旋转角度
      */
     @Override
-    protected void onFilterPictureTaken(byte[] jpegData, int exif, int rotation) {
-        PictureData data = new PictureData();
-        data.pictureByte = jpegData;
-        data.exif = exif;
-        data.rotation = rotation;
+    protected void onFilterPictureTaken(final byte[] jpegData, final int exif, final int rotation) {
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                PictureData data = new PictureData();
+                data.pictureByte = jpegData;
+                data.exif = exif;
+                data.rotation = rotation;
 
-        //保存文件到存储卡中
-        final String orignalPath = Environment.getExternalStorageDirectory() +
-                "/DCIM/" + "CameraDemo"+System.currentTimeMillis() + ".jpeg";
-        CameraUtil.addImage(jpegData, orignalPath);
-        if (exif != -1) {
-            ExifUtil.setExifOrientation(orignalPath, exif);
-        }
+                final Bitmap bitmap = BitmapFactory.decodeByteArray(jpegData,0,jpegData.length);
+                data.bitmap =bitmap;
+                //保存文件到存储卡中
+                final String orignalPath = Environment.getExternalStorageDirectory() +
+                        "/DCIM/CameraDemo/" + "CameraDemo"+System.currentTimeMillis() + ".jpeg";
+                Log.d("zby log","orignalPath:"+orignalPath);
+                CameraUtil.addImage(jpegData, orignalPath);
+                boolean save = CacheUtil.saveImageSD(new NativeBitmap(), orignalPath, 100);
+                if (exif != -1) {
+                    ExifUtil.setExifOrientation(orignalPath, exif);
+                }
 
-        Bitmap bitmap = BitmapFactory.decodeByteArray(jpegData,0,jpegData.length);
-        mIvAlumb.setImageBitmap(bitmap);
-        mPbSaveImage.setVisibility(View.GONE);
+                mActivity.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        mIvAlumb.setImageBitmap(bitmap);
+                        mPbSaveImage.setVisibility(View.GONE);
+                    }
+                });
+
+            }
+        });
 
     }
 

@@ -7,15 +7,15 @@ import android.graphics.Bitmap;
  */
 public class PictureData {
     //拍照模式
-    public static byte[] pictureByte = null;
+    public  byte[] pictureByte = null;
     //截屏数据
-    public static Bitmap bitmap = null;
+    public  Bitmap bitmap = null;
     //exif
-    public static int exif = 0;
+    public  int exif = 0;
     //手机旋转角度
-    public static int rotation = 0;
+    public  int rotation = 0;
     //是否后置摄像头
-    public static boolean isBackCameraOpen = false;
+    public  boolean isBackCameraOpen = false;
 
     public byte[] getPictureByte() {
         return pictureByte;
