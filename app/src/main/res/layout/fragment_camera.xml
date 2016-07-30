@@ -70,8 +70,7 @@
         android:layout_height="20dp"
         android:layout_below="@id/rl_top_bar"
         android:background="@color/white"
-        android:visibility="gone"
-        />
+        android:visibility="gone" />
 
     <View
         android:id="@+id/view_bottom_cover"
@@ -79,8 +78,7 @@
         android:layout_height="20dp"
         android:layout_above="@+id/ll_bottom_bar"
         android:background="@color/white"
-        android:visibility="gone"
-        />
+        android:visibility="gone" />
 
     <!-- 底部 -->
     <LinearLayout
@@ -96,22 +94,38 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent">
 
-
-            <ImageView
-                android:id="@+id/iv_album"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_alignParentLeft="true"
+            <FrameLayout
+                android:id="@+id/fl_ablum"
+                android:layout_width="40dip"
+                android:layout_height="40dip"
                 android:layout_centerVertical="true"
                 android:layout_marginLeft="12dp"
-                android:scaleType="centerCrop"
-                android:src="@drawable/camera_album_ic_sel" />
+                android:layout_alignParentLeft="true"
+                >
+
+                <ImageView
+                    android:id="@+id/iv_album"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/camera_album_ic_sel"
+                    android:padding="1dip"
+                    android:scaleType="centerCrop" />
+
+                <ProgressBar
+                    android:id="@+id/pb_save_image"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_margin="1dip"
+                    android:background="@color/color_80ff84ab"
+                    android:visibility="gone"/>
+
+            </FrameLayout>
 
             <RelativeLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:layout_toLeftOf="@+id/iv_take_picture"
-                android:layout_toRightOf="@+id/iv_album">
+                android:layout_toRightOf="@+id/fl_ablum">
 
                 <ImageView
                     android:id="@+id/iv_switch_picture_ratio"

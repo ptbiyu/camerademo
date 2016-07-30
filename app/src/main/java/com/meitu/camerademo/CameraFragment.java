@@ -1,14 +1,18 @@
 package com.meitu.camerademo;
 
 import android.app.Activity;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.hardware.Camera;
 import android.os.Bundle;
+import android.os.Environment;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
 import android.widget.Toast;
 
@@ -20,6 +24,9 @@ import com.meitu.camera.model.CameraProcess;
 import com.meitu.camera.model.CameraSetting;
 import com.meitu.camera.ui.FaceView;
 import com.meitu.camera.ui.PreviewFrameLayout;
+import com.meitu.camera.util.CameraUtil;
+import com.meitu.camera.util.ExifUtil;
+import com.meitu.camerademo.bean.PictureData;
 import com.meitu.camerademo.face.FaceDectectFunction;
 import com.meitu.camerademo.face.IFaceDectectFunction;
 import com.meitu.library.util.device.DeviceUtils;
@@ -45,7 +52,7 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
     private static final int CAMERA_RATIO_FULL = 3;
 
 
-    private ImageView mIvBack, mIvFlash, mIvCameraSwitch, mIvCameraLevel, mIvCameraFilter, mIvCameraRationChange;
+    private ImageView mIvBack, mIvFlash, mIvCameraSwitch, mIvCameraLevel, mIvCameraFilter, mIvCameraRationChange,mIvTakePicture;
 
     private PreviewFrameLayout mCameraPreviewLayout;
 
@@ -53,6 +60,9 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
 
     private RelativeLayout mRlTopBar;
     private LinearLayout mLlBottomBar;
+
+    private ImageView mIvAlumb;
+    private ProgressBar mPbSaveImage;
 
     private FaceView mFaceView;
 
@@ -143,6 +153,12 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
 
         mRlTopBar = (RelativeLayout) view.findViewById(R.id.rl_top_bar);
         mLlBottomBar = (LinearLayout) view.findViewById(R.id.ll_bottom_bar);
+
+        mIvTakePicture = (ImageView) view.findViewById(R.id.iv_take_picture);
+        mIvTakePicture.setOnClickListener(this);
+
+        mIvAlumb = (ImageView) view.findViewById(R.id.iv_album);
+        mPbSaveImage = (ProgressBar) view.findViewById(R.id.pb_save_image);
     }
 
     @Override
@@ -168,8 +184,31 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
         return mCameraConfig;
     }
 
+    /**
+     * 拍照数据返回
+     *
+     * @param jpegData 照片原始数据
+     * @param exif     照片的exif信息
+     * @param rotation 屏幕旋转角度
+     */
     @Override
-    protected void onFilterPictureTaken(byte[] bytes, int i, int i1) {
+    protected void onFilterPictureTaken(byte[] jpegData, int exif, int rotation) {
+        PictureData data = new PictureData();
+        data.pictureByte = jpegData;
+        data.exif = exif;
+        data.rotation = rotation;
+
+        //保存文件到存储卡中
+        final String orignalPath = Environment.getExternalStorageDirectory() +
+                "/DCIM/" + "CameraDemo"+System.currentTimeMillis() + ".jpeg";
+        CameraUtil.addImage(jpegData, orignalPath);
+        if (exif != -1) {
+            ExifUtil.setExifOrientation(orignalPath, exif);
+        }
+
+        Bitmap bitmap = BitmapFactory.decodeByteArray(jpegData,0,jpegData.length);
+        mIvAlumb.setImageBitmap(bitmap);
+        mPbSaveImage.setVisibility(View.GONE);
 
     }
 
@@ -203,6 +242,10 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
                 break;
             case R.id.iv_switch_picture_ratio:
                 changeCameraRatio();
+                break;
+            case R.id.iv_take_picture:
+                mPbSaveImage.setVisibility(View.VISIBLE);
+                takePicture(false,false);
                 break;
         }
     }
