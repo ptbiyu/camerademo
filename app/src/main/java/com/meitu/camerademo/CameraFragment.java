@@ -29,8 +29,6 @@ import com.meitu.camera.util.ExifUtil;
 import com.meitu.camerademo.bean.PictureData;
 import com.meitu.camerademo.face.FaceDectectFunction;
 import com.meitu.camerademo.face.IFaceDectectFunction;
-import com.meitu.core.types.NativeBitmap;
-import com.meitu.core.util.CacheUtil;
 import com.meitu.library.util.device.DeviceUtils;
 import com.meitu.realtime.param.EffectParam;
 import com.meitu.realtime.param.FilterParamater;
@@ -38,6 +36,7 @@ import com.meitu.realtime.param.OnlineMaterialsParam;
 import com.meitu.realtime.parse.OnlineEffectParser;
 import com.meitu.realtime.util.MTFilterOperation;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -57,8 +56,11 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
     private static final int CAMERA_RATIO_FULL = 3;
 
 
-    private ImageView mIvBack, mIvFlash, mIvCameraSwitch, mIvCameraLevel, mIvCameraFilter, mIvCameraRationChange,mIvTakePicture;
+    private ImageView mIvBack, mIvFlash, mIvCameraSwitch, mIvCameraLevel, mIvCameraFilter, mIvCameraRationChange, mIvTakePicture;
 
+    /**
+     *
+     */
     private PreviewFrameLayout mCameraPreviewLayout;
 
     private View mViewTopCover, mViewBottomCover;
@@ -111,7 +113,7 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
         View view = inflater.inflate(R.layout.fragment_camera, container, false);
         findView(view);
         loadOnlineMaterialsParams();
-        executor = new ThreadPoolExecutor(10,15,200, TimeUnit.MILLISECONDS,new ArrayBlockingQueue<Runnable>(10));
+        executor = new ThreadPoolExecutor(10, 15, 200, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<Runnable>(10));
         return view;
     }
 
@@ -218,14 +220,17 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
                 data.exif = exif;
                 data.rotation = rotation;
 
-                final Bitmap bitmap = BitmapFactory.decodeByteArray(jpegData,0,jpegData.length);
-                data.bitmap =bitmap;
+                final Bitmap bitmap = BitmapFactory.decodeByteArray(jpegData, 0, jpegData.length);
+                data.bitmap = bitmap;
                 //保存文件到存储卡中
-                final String orignalPath = Environment.getExternalStorageDirectory() +
-                        "/DCIM/CameraDemo/" + "CameraDemo"+System.currentTimeMillis() + ".jpeg";
-                Log.d("zby log","orignalPath:"+orignalPath);
+                String orignalDirectory = Environment.getExternalStorageDirectory() +
+                        "/DCIM/CameraDemo/";
+                File file = new File(orignalDirectory);
+                if (!file.exists()) {
+                    file.mkdirs();
+                }
+                final String orignalPath = orignalDirectory + "CameraDemo" + System.currentTimeMillis() + ".jpeg";
                 CameraUtil.addImage(jpegData, orignalPath);
-                boolean save = CacheUtil.saveImageSD(new NativeBitmap(), orignalPath, 100);
                 if (exif != -1) {
                     ExifUtil.setExifOrientation(orignalPath, exif);
                 }
@@ -276,7 +281,7 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
                 break;
             case R.id.iv_take_picture:
                 mPbSaveImage.setVisibility(View.VISIBLE);
-                takePicture(false,false);
+                takePicture(false, false);
                 break;
         }
     }
@@ -495,7 +500,7 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
         } else {
             dy = 0;
         }
-        if (mCurrentRatio == CAMERA_RATIO_FULL){
+        if (mCurrentRatio == CAMERA_RATIO_FULL) {
             dy = 0;
         }
 
@@ -509,46 +514,46 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
             overSumHegiht = screenHeight - screenWidth / 3 * 4 - minTopHeight - minBottomHeight;
         } else if (mCurrentRatio == CAMERA_RATIO_1_1) {
             overSumHegiht = screenHeight - screenWidth - minTopHeight - minBottomHeight;
-        }else{
+        } else {
             overSumHegiht = 0;
         }
 
-        if (overSumHegiht < 0){
+        if (overSumHegiht < 0) {
             overSumHegiht = 0;
         }
 
         //求出扣除预览、顶部栏和底部栏之外的剩余高度，3等分，顶部这概览三分之一，底部这概览三分之二
         int topCoverHeight = overSumHegiht / 3;
-        int bottomCoverHeight = topCoverHeight *2;
+        int bottomCoverHeight = topCoverHeight * 2;
 
-        if (topCoverHeight >0){
-            RelativeLayout.LayoutParams topParams  = (RelativeLayout.LayoutParams) mViewTopCover.getLayoutParams();
+        if (topCoverHeight > 0) {
+            RelativeLayout.LayoutParams topParams = (RelativeLayout.LayoutParams) mViewTopCover.getLayoutParams();
             topParams.height = topCoverHeight;
             mViewTopCover.setLayoutParams(topParams);
             mViewTopCover.setVisibility(View.VISIBLE);
-        }else{
+        } else {
             mViewTopCover.setVisibility(View.GONE);
         }
 
 
-        if (bottomCoverHeight >0){
-            RelativeLayout.LayoutParams bottomParams  = (RelativeLayout.LayoutParams) mViewBottomCover.getLayoutParams();
+        if (bottomCoverHeight > 0) {
+            RelativeLayout.LayoutParams bottomParams = (RelativeLayout.LayoutParams) mViewBottomCover.getLayoutParams();
             bottomParams.height = bottomCoverHeight;
             mViewBottomCover.setLayoutParams(bottomParams);
             mViewBottomCover.setVisibility(View.VISIBLE);
-        }else{
+        } else {
             mViewBottomCover.setVisibility(View.GONE);
         }
 
-        if (mCurrentRatio == CAMERA_RATIO_FULL){
-            mRlTopBar.setBackgroundColor(this.getResources().getColor( R.color.color_white_85));
+        if (mCurrentRatio == CAMERA_RATIO_FULL) {
+            mRlTopBar.setBackgroundColor(this.getResources().getColor(R.color.color_white_85));
             mLlBottomBar.setBackgroundColor(this.getResources().getColor(android.R.color.transparent));
-        }else{
+        } else {
             mRlTopBar.setBackgroundColor(this.getResources().getColor(R.color.white));
             mLlBottomBar.setBackgroundColor(this.getResources().getColor(R.color.white));
         }
 
-        Log.d("zby log","dy:"+dy+",topCoverHeight:"+topCoverHeight+",bottomCoverHeight:"+bottomCoverHeight);
+        Log.d("zby log", "dy:" + dy + ",topCoverHeight:" + topCoverHeight + ",bottomCoverHeight:" + bottomCoverHeight);
     }
 
 
