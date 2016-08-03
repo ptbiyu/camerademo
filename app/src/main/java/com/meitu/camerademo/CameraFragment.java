@@ -203,7 +203,7 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
         mCameraConfig.mFocusLayoutResId = R.id.camera_focous_layout;
         mCameraConfig.mFaceLayoutResId = R.id.camera_faceview;
         mCameraConfig.mFlashMode = Camera.Parameters.FLASH_MODE_OFF;
-        mCameraConfig.isDefaultStartFrontCamera = false;
+        mCameraConfig.isDefaultStartFrontCamera = true;
         mCameraConfig.mPreviewLayout = CameraConfig.PREVIEW_LAYOUT.CROP;// 设置预览模式 中间裁剪，所以有可能溢出
         mCameraConfig.canStartPreviewInJpegCallback = false;// 拍照后，如果要继续预览，设置为true
         mCameraConfig.isNeedAutoFocusBeforeTakePicture = true;// 拍照的时候是否需要自动对焦后再拍照
@@ -370,10 +370,11 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
                 break;
         }
 
-        resetCameraPreviewSize();
-        //if (mCurrentRatio == CAMERA_RATIO_4_3 || mCurrentRatio == CAMERA_RATIO_FULL) {
+        if (mCurrentRatio == CAMERA_RATIO_4_3 || mCurrentRatio == CAMERA_RATIO_FULL) {
             changePreviewSize();
-       // }
+        }else{
+            resetCameraPreviewSize();
+        }
     }
 
     /**
@@ -602,7 +603,7 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
         mActivity.runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                //resetCameraPreviewSize();
+                resetCameraPreviewSize();
             }
         });
     }
