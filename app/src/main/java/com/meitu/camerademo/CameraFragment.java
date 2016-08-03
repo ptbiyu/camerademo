@@ -3,6 +3,7 @@ package com.meitu.camerademo;
 import android.app.Activity;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.RectF;
 import android.hardware.Camera;
 import android.os.Bundle;
 import android.os.Environment;
@@ -108,6 +109,8 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
     private int mScreenWidth, mScreenHeight;
 
     private int mPreviewXOut, mPreviewYOut;
+
+    private RectF rect = new RectF(0, 0, 0, 0);
 
     /**
      * 用来执行连拍的线程池
@@ -372,7 +375,7 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
 
         if (mCurrentRatio == CAMERA_RATIO_4_3 || mCurrentRatio == CAMERA_RATIO_FULL) {
             changePreviewSize();
-        }else{
+        } else {
             resetCameraPreviewSize();
         }
     }
@@ -785,7 +788,7 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
         mRlTopBar.setBackgroundColor(this.getResources().getColor(R.color.white));
         mLlBottomBar.setBackgroundColor(this.getResources().getColor(R.color.white));
 
-       // Log.d("zby log", "changeUi43 dy:" + dy + ",topCoverHeight:" + topCoverHeight + ",bottomCoverHeight:" + bottomCoverHeight);
+        // Log.d("zby log", "changeUi43 dy:" + dy + ",topCoverHeight:" + topCoverHeight + ",bottomCoverHeight:" + bottomCoverHeight);
 
     }
 
@@ -827,6 +830,21 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
         mLlBottomBar.setBackgroundColor(this.getResources().getColor(android.R.color.transparent));
         mViewTopCover.setVisibility(View.GONE);
         mViewBottomCover.setVisibility(View.GONE);
+
+        float x = 0f, y = 0f;
+        if (mPreviewXOut > 0) {
+            x = (float) previewWidth / (2 * mPreviewXOut + mScreenWidth) * mPreviewXOut / previewWidth;
+            Log.d("zby log", "x:" + x);
+        }
+
+        if (mPreviewYOut > 0) {
+            y = (float) previewHeight / (2 * mPreviewYOut + mScreenHeight) * mPreviewYOut / previewHeight;
+            Log.d("zby log", "y:" + y);
+        }
+
+        rect.left = x;
+        rect.top = y;
+       // rect.right =
     }
 
 }

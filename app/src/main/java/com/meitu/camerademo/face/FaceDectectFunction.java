@@ -3,7 +3,6 @@ package com.meitu.camerademo.face;
 import android.app.Activity;
 import android.graphics.RectF;
 import android.hardware.Camera;
-import android.util.Log;
 
 import com.meitu.camera.ui.FaceView;
 import com.meitu.core.facedetect.FaceDetector;
@@ -83,7 +82,7 @@ public class FaceDectectFunction implements Runnable {
         mIsBackCameraOpen = isBackCameraOpen;
         mPreviewXOut = previewXOut;
         mPrevewYOut = previewYOut;
-        Log.d("zby log", "mPreviewXOut:" + mPreviewXOut + ",mPrevewYOut:" + mPrevewYOut+ ",mPreviewSize.width:" + mPreviewSize.width+ ",mPreviewSize.height:" + mPreviewSize.height);
+        //Log.d("zby log", "mPreviewXOut:" + mPreviewXOut + ",mPrevewYOut:" + mPrevewYOut+ ",mPreviewSize.width:" + mPreviewSize.width+ ",mPreviewSize.height:" + mPreviewSize.height);
         mAspectRadio = mPreviewXOut > 0 ? (float) mFaceView.getWidth() / mPreviewSize.height
                 : (float) mFaceView.getHeight() / mPreviewSize.width;
         //mAspectRadio = (float) mFaceView.getHeight() / (float) mPreviewSize.width;
