@@ -17,11 +17,12 @@ import android.widget.RelativeLayout;
 import android.widget.Toast;
 
 import com.meitu.camera.CameraSize;
+import com.meitu.camera.event.PreviewFrameLayoutEvent;
+import com.meitu.camera.event.RequestLayoutCameraPreviewEvent;
 import com.meitu.camera.filter.FilterCameraFragment;
 import com.meitu.camera.model.CameraConfig;
 import com.meitu.camera.model.CameraModel;
 import com.meitu.camera.model.CameraProcess;
-import com.meitu.camera.model.CameraSetting;
 import com.meitu.camera.ui.FaceView;
 import com.meitu.camera.ui.PreviewFrameLayout;
 import com.meitu.camera.util.CameraUtil;
@@ -40,6 +41,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -103,16 +105,23 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
      */
     private int mPreviewWidth, mPreviewHeight;
 
+    private int mScreenWidth, mScreenHeight;
+
+    private int mPreviewXOut, mPreviewYOut;
+
     /**
      * 用来执行连拍的线程池
      */
     private ThreadPoolExecutor executor = null;
+
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_camera, container, false);
         findView(view);
         loadOnlineMaterialsParams();
+        mScreenWidth = DeviceUtils.getScreenWidth();
+        mScreenHeight = DeviceUtils.getScreenHeight();
         executor = new ThreadPoolExecutor(10, 15, 200, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<Runnable>(10));
         return view;
     }
@@ -178,6 +187,7 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
 
         mIvAlumb = (ImageView) view.findViewById(R.id.iv_album);
         mPbSaveImage = (ProgressBar) view.findViewById(R.id.pb_save_image);
+
     }
 
     @Override
@@ -194,10 +204,10 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
         mCameraConfig.mFaceLayoutResId = R.id.camera_faceview;
         mCameraConfig.mFlashMode = Camera.Parameters.FLASH_MODE_OFF;
         mCameraConfig.isDefaultStartFrontCamera = false;
-        mCameraConfig.mPreviewLayout = CameraConfig.PREVIEW_LAYOUT.CROP;// 设置预览模式
+        mCameraConfig.mPreviewLayout = CameraConfig.PREVIEW_LAYOUT.CROP;// 设置预览模式 中间裁剪，所以有可能溢出
         mCameraConfig.canStartPreviewInJpegCallback = false;// 拍照后，如果要继续预览，设置为true
         mCameraConfig.isNeedAutoFocusBeforeTakePicture = true;// 拍照的时候是否需要自动对焦后再拍照
-        mCameraConfig.isPreviewSizesOderByAsc = false;// 预览尺寸优先选最小的
+        //mCameraConfig.isPreviewSizesOderByAsc = false;// 预览尺寸优先选最小的
         mCommonCamearProcess = new CommonCameraProcess();
         mCameraConfig.mCameraProcess = mCommonCamearProcess;
         return mCameraConfig;
@@ -295,7 +305,7 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
                 new EffectParam(getOnlineMaterialsParam(), new MTFilterOperation(true, true, true),
                         EffectParam.RealFilterTargetType.MT_TAKE_PHOTO);
 
-        //使用这个方法切换滤镜没有暗角和虚化效果
+        //使用这个方法切换滤镜没有暗角效果？
       /*  mEffectParam =
                 new EffectParam(mCurrentFilterId,0, new MTFilterOperation(true, true, true),
                         EffectParam.RealFilterTargetType.MT_TAKE_PHOTO,1f);*/
@@ -360,8 +370,10 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
                 break;
         }
 
-        //changePreviewSize();
-        changeUi();
+        resetCameraPreviewSize();
+        //if (mCurrentRatio == CAMERA_RATIO_4_3 || mCurrentRatio == CAMERA_RATIO_FULL) {
+            changePreviewSize();
+       // }
     }
 
     /**
@@ -464,7 +476,8 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
 
         @Override
         public void onCameraOpenSucess() {
-            mFaceDectectFunction.initParam(CameraSetting.getOptimalCameraPreviewSize(isFrontCameraOpen()), isBackCameraOpen());
+            Camera.Size previewSize = getCameraModel().getParameters().getPreviewSize();
+            mFaceDectectFunction.initParam(previewSize, isBackCameraOpen(), mPreviewXOut, mPreviewYOut);
         }
 
         @Override
@@ -482,41 +495,181 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
             mPreviewWidth = previewLayoutWidth;
             mPreviewHeight = previewLayoutHeight;
             Log.d("zby log", "mPreviewWidth:" + mPreviewWidth + ",mPreviewHeight:" + mPreviewHeight);
-
-            changeUi();
         }
     }
 
-    private void changeUi() {
+    @Override
+    public CameraSize settingPreviewSize(ArrayList arrayList, CameraSize pictureSize) {
+        if (arrayList == null || pictureSize == null) {
+            return super.settingPreviewSize(arrayList, pictureSize);
+        }
+
+        ArrayList<CameraSize> removeSizes = new ArrayList<>();
+
+        for (CameraSize previewSize : (ArrayList<CameraSize>) arrayList) {
+            if (previewSize.width * previewSize.height > mScreenWidth * mScreenHeight) {
+                removeSizes.add(previewSize);
+            }
+        }
+
+        if (!removeSizes.isEmpty()) {
+            arrayList.removeAll(removeSizes);
+        }
+
+        float bestPreviewRatio = (float) pictureSize.width / pictureSize.height;
+
+        CameraSize previewSize = null;
+
+        for (CameraSize cameraSize : (ArrayList<CameraSize>) arrayList) {
+
+            if ((float) cameraSize.width / cameraSize.height == bestPreviewRatio
+                    && cameraSize.width * cameraSize.height <= mScreenWidth * mScreenHeight) {
+                previewSize = cameraSize;
+                break;
+            }
+
+        }
+
+        // Log.v("zby log", "settingPreviewSize previewSize = " + previewSize.width + "," + previewSize.height);
+
+        return previewSize;
+    }
+
+    @Override
+    public CameraSize settingPictureSize(ArrayList arrayList) {
+        if (arrayList == null || arrayList.isEmpty()) {
+            return super.settingPictureSize(arrayList);
+        }
+
+        List<Camera.Size> previewSizes = getCameraModel().getParameters().getSupportedPreviewSizes();
+
+        ArrayList<Camera.Size> removeSizes = new ArrayList<>();
+        for (Camera.Size previewSize : previewSizes) {
+            //   Log.d("zby log", "preview size = " + previewSize.width + "," + previewSize.height);
+            if (previewSize.width * previewSize.height > mScreenWidth * mScreenHeight) {
+                removeSizes.add(previewSize);
+            }
+        }
+
+        if (!removeSizes.isEmpty()) {
+            previewSizes.remove(removeSizes);
+        }
+
+        float bestPreviewRatio = !isFrontCameraOpen() && mCurrentRatio == CAMERA_RATIO_FULL ?
+                mScreenHeight / mScreenWidth : 4f / 3;
+
+        CameraSize bestPictureSize = null;
+        float poor = 0.0001f;
+
+        do {
+            for (CameraSize pictureSize : (ArrayList<CameraSize>) arrayList) {
+
+                if (Math.abs(bestPreviewRatio - (float) pictureSize.width / pictureSize.height) < poor) {
+
+                    boolean find = false;
+
+                    for (Camera.Size previewSize : previewSizes) {
+                        if ((float) previewSize.height / previewSize.width == (float) pictureSize.height
+                                / pictureSize.width) {
+                            // Log.d("zby log", "best preview size = " + previewSize.width + "," + previewSize.height);
+                            find = true;
+                            break;
+                        }
+                    }
+
+                    if (find) {
+                        bestPictureSize = pictureSize;
+                        break;
+                    }
+                }
+
+            }
+            poor += 0.0005;
+        } while (bestPictureSize == null);
+
+        return bestPictureSize;
+    }
+
+    @Override
+    public void onEvent(PreviewFrameLayoutEvent previewFrameLayoutEvent) {
+        super.onEvent(previewFrameLayoutEvent);
+        //但预览控件的尺寸发生变化的时候会回调
+        //设置  mCameraConfig.mPreviewLayout = CameraConfig.PREVIEW_LAYOUT.INSIDE 才会触发预览控件大小发生变化
+    }
+
+    @Override
+    public void onEvent(RequestLayoutCameraPreviewEvent requestLayoutCameraPreviewEvent) {
+        mActivity.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                //resetCameraPreviewSize();
+            }
+        });
+    }
+
+    private void resetCameraPreviewSize() {
+        switch (mCurrentRatio) {
+            case CAMERA_RATIO_1_1:
+                changeUi11();
+                break;
+            case CAMERA_RATIO_4_3:
+                changeUi43();
+                break;
+            case CAMERA_RATIO_FULL:
+                changeUiFull();
+                break;
+        }
+    }
+
+    private void changeUi11() {
+        mPreviewXOut = 0;
+        mPreviewYOut = 0;
+        if (getCameraModel() == null)
+            return;
+
+        Camera.Size previewSize = getCameraModel().getParameters().getPreviewSize();
+        int previewWidth = previewSize.height;
+        int previewHeight = previewSize.width;
+
+        //计算预览框的大小和偏移量
+        RelativeLayout.LayoutParams params = (RelativeLayout.LayoutParams) mCameraPreviewLayout.getLayoutParams();
+        params.width = mScreenWidth;
+        params.height = mScreenWidth * previewHeight / previewWidth;
+
         int minBottomHeight = mActivity.getResources().getDimensionPixelSize(R.dimen.camera_bottom_min_height);
         int minTopHeight = mActivity.getResources().getDimensionPixelSize(R.dimen.camera_top_height);
-        int screenWidth = DeviceUtils.getScreenWidth();
-        int screenHeight = DeviceUtils.getScreenHeight();
-
         //计算预览框的偏移量
-        int dy = screenHeight - mPreviewHeight - minBottomHeight;
+        int dy = mScreenHeight - params.height - minBottomHeight;
         if (dy > 0) {
-            dy = minTopHeight;
+            if (dy > minTopHeight) {
+                dy = minTopHeight;
+            }
         } else {
             dy = 0;
         }
-        if (mCurrentRatio == CAMERA_RATIO_FULL) {
-            dy = 0;
-        }
-
-        RelativeLayout.LayoutParams params = (RelativeLayout.LayoutParams) mCameraPreviewLayout.getLayoutParams();
         params.topMargin = dy;
         params.bottomMargin = -dy;
         mCameraPreviewLayout.setLayoutParams(params);
-        //计算顶部遮盖和底部这概览的高度
-        int overSumHegiht = 0;
-        if (mCurrentRatio == CAMERA_RATIO_4_3) {
-            overSumHegiht = screenHeight - screenWidth / 3 * 4 - minTopHeight - minBottomHeight;
-        } else if (mCurrentRatio == CAMERA_RATIO_1_1) {
-            overSumHegiht = screenHeight - screenWidth - minTopHeight - minBottomHeight;
+
+        float previewLayoutRatio = params.height / mScreenWidth;
+        float previewRatio = previewHeight / previewWidth;
+
+        if (previewLayoutRatio > previewRatio) {
+            mPreviewXOut = (params.height / previewHeight * previewWidth - mScreenWidth) / 2;
         } else {
-            overSumHegiht = 0;
+            mPreviewYOut = (mScreenWidth / previewWidth * previewHeight - params.height) / 2;
         }
+
+        if (mPreviewXOut < 0) {
+            mPreviewXOut = 0;
+        }
+
+        if (mPreviewYOut < 0) {
+            mPreviewYOut = 0;
+        }
+
+        //计算顶部遮盖和底部这概览的高度
+        int overSumHegiht = mScreenHeight - mScreenWidth - minTopHeight - minBottomHeight;
 
         if (overSumHegiht < 0) {
             overSumHegiht = 0;
@@ -535,6 +688,89 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
             mViewTopCover.setVisibility(View.GONE);
         }
 
+        if (bottomCoverHeight > 0) {
+            RelativeLayout.LayoutParams bottomParams = (RelativeLayout.LayoutParams) mViewBottomCover.getLayoutParams();
+            bottomParams.height = bottomCoverHeight;
+            mViewBottomCover.setLayoutParams(bottomParams);
+            mViewBottomCover.setVisibility(View.VISIBLE);
+        } else {
+            mViewBottomCover.setVisibility(View.GONE);
+        }
+
+        mRlTopBar.setBackgroundColor(this.getResources().getColor(R.color.white));
+        mLlBottomBar.setBackgroundColor(this.getResources().getColor(R.color.white));
+
+        //Log.d("zby log", "dy:" + dy + ",topCoverHeight:" + topCoverHeight + ",bottomCoverHeight:" + bottomCoverHeight);
+
+    }
+
+    private void changeUi43() {
+        mPreviewXOut = 0;
+        mPreviewYOut = 0;
+        if (getCameraModel() == null)
+            return;
+
+        Camera.Size previewSize = getCameraModel().getParameters().getPreviewSize();
+        int previewWidth = previewSize.height;
+        int previewHeight = previewSize.width;
+
+        //计算预览框的大小和偏移量
+        RelativeLayout.LayoutParams params = (RelativeLayout.LayoutParams) mCameraPreviewLayout.getLayoutParams();
+        params.width = mScreenWidth;
+        params.height = mScreenWidth * previewHeight / previewWidth;
+
+        int minBottomHeight = mActivity.getResources().getDimensionPixelSize(R.dimen.camera_bottom_min_height);
+        int minTopHeight = mActivity.getResources().getDimensionPixelSize(R.dimen.camera_top_height);
+        //计算预览框的偏移量
+        int dy = mScreenHeight - params.height - minBottomHeight;
+        if (dy > 0) {
+            if (dy > minTopHeight) {
+                dy = minTopHeight;
+            }
+        } else {
+            dy = 0;
+        }
+        params.topMargin = dy;
+        params.bottomMargin = -dy;
+        mCameraPreviewLayout.setLayoutParams(params);
+
+        float previewLayoutRatio = params.height / mScreenWidth;
+        float previewRatio = previewHeight / previewWidth;
+
+        if (previewLayoutRatio > previewRatio) {
+            mPreviewXOut = (params.height / previewHeight * previewWidth - mScreenWidth) / 2;
+        } else {
+            mPreviewYOut = (mScreenWidth / previewWidth * previewHeight - params.height) / 2;
+        }
+
+        if (mPreviewXOut < 0) {
+            mPreviewXOut = 0;
+        }
+
+        if (mPreviewYOut < 0) {
+            mPreviewYOut = 0;
+        }
+
+
+        //计算顶部遮盖和底部这概览的高度
+        int overSumHegiht = mScreenHeight - mScreenWidth / 3 * 4 - minTopHeight - minBottomHeight;
+
+        if (overSumHegiht < 0) {
+            overSumHegiht = 0;
+        }
+
+        //求出扣除预览、顶部栏和底部栏之外的剩余高度，3等分，顶部这概览三分之一，底部这概览三分之二
+        int topCoverHeight = overSumHegiht / 3;
+        int bottomCoverHeight = topCoverHeight * 2;
+
+        if (topCoverHeight > 0) {
+            RelativeLayout.LayoutParams topParams = (RelativeLayout.LayoutParams) mViewTopCover.getLayoutParams();
+            topParams.height = topCoverHeight;
+            mViewTopCover.setLayoutParams(topParams);
+            mViewTopCover.setVisibility(View.VISIBLE);
+        } else {
+            mViewTopCover.setVisibility(View.GONE);
+        }
 
         if (bottomCoverHeight > 0) {
             RelativeLayout.LayoutParams bottomParams = (RelativeLayout.LayoutParams) mViewBottomCover.getLayoutParams();
@@ -545,16 +781,51 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
             mViewBottomCover.setVisibility(View.GONE);
         }
 
-        if (mCurrentRatio == CAMERA_RATIO_FULL) {
-            mRlTopBar.setBackgroundColor(this.getResources().getColor(R.color.color_white_85));
-            mLlBottomBar.setBackgroundColor(this.getResources().getColor(android.R.color.transparent));
-        } else {
-            mRlTopBar.setBackgroundColor(this.getResources().getColor(R.color.white));
-            mLlBottomBar.setBackgroundColor(this.getResources().getColor(R.color.white));
-        }
+        mRlTopBar.setBackgroundColor(this.getResources().getColor(R.color.white));
+        mLlBottomBar.setBackgroundColor(this.getResources().getColor(R.color.white));
 
-        Log.d("zby log", "dy:" + dy + ",topCoverHeight:" + topCoverHeight + ",bottomCoverHeight:" + bottomCoverHeight);
+       // Log.d("zby log", "changeUi43 dy:" + dy + ",topCoverHeight:" + topCoverHeight + ",bottomCoverHeight:" + bottomCoverHeight);
+
     }
 
+    private void changeUiFull() {
+        mPreviewXOut = 0;
+        mPreviewYOut = 0;
+        if (getCameraModel() == null)
+            return;
+
+        Camera.Size previewSize = getCameraModel().getParameters().getPreviewSize();
+        int previewWidth = previewSize.height;
+        int previewHeight = previewSize.width;
+
+        //计算预览框的大小和偏移量
+        RelativeLayout.LayoutParams params = (RelativeLayout.LayoutParams) mCameraPreviewLayout.getLayoutParams();
+        params.width = mScreenWidth;
+        params.height = mScreenHeight;
+        params.setMargins(0, 0, 0, 0);
+        mCameraPreviewLayout.setLayoutParams(params);
+
+        float previewLayoutRatio = (float) mScreenHeight / mScreenWidth;
+        float previewRatio = (float) previewHeight / previewWidth;
+
+        if (previewLayoutRatio > previewRatio) {
+            mPreviewXOut = (int) ((mScreenHeight / previewRatio - mScreenWidth) / 2);
+        } else {
+            mPreviewYOut = (int) ((mScreenWidth * previewRatio - mScreenHeight) / 2);
+        }
+
+        if (mPreviewXOut < 0) {
+            mPreviewXOut = 0;
+        }
+
+        if (mPreviewYOut < 0) {
+            mPreviewYOut = 0;
+        }
+
+        mRlTopBar.setBackgroundColor(this.getResources().getColor(R.color.color_white_85));
+        mLlBottomBar.setBackgroundColor(this.getResources().getColor(android.R.color.transparent));
+        mViewTopCover.setVisibility(View.GONE);
+        mViewBottomCover.setVisibility(View.GONE);
+    }
 
 }

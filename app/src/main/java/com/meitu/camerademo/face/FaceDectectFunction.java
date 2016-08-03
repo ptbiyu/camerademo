@@ -1,14 +1,15 @@
 package com.meitu.camerademo.face;
 
-import java.util.ArrayList;
-
 import android.app.Activity;
 import android.graphics.RectF;
+import android.hardware.Camera;
+import android.util.Log;
 
-import com.meitu.camera.CameraSize;
 import com.meitu.camera.ui.FaceView;
 import com.meitu.core.facedetect.FaceDetector;
 import com.meitu.core.types.FaceData;
+
+import java.util.ArrayList;
 
 
 /**
@@ -52,7 +53,7 @@ public class FaceDectectFunction implements Runnable {
     /**
      * 预览尺寸
      */
-    private CameraSize mPreviewSize;
+    private Camera.Size mPreviewSize;
     /**
      * 是否后置摄像头
      */
@@ -61,6 +62,8 @@ public class FaceDectectFunction implements Runnable {
      * 人脸识别数据和视图的数据比例
      */
     private float mAspectRadio;
+
+    private int mPreviewXOut,mPrevewYOut;
 
     public FaceDectectFunction(Activity activity, FaceView faceView, IFaceDectectFunction faceDectectFunction) {
         mFaceView = faceView;
@@ -75,10 +78,15 @@ public class FaceDectectFunction implements Runnable {
      * @param previewSize
      * @param isBackCameraOpen
      */
-    public void initParam(CameraSize previewSize, boolean isBackCameraOpen) {
+    public void initParam(Camera.Size previewSize, boolean isBackCameraOpen, int previewXOut, int previewYOut) {
         mPreviewSize = previewSize;
         mIsBackCameraOpen = isBackCameraOpen;
-        mAspectRadio = (float) mFaceView.getHeight() / (float) mPreviewSize.width;
+        mPreviewXOut = previewXOut;
+        mPrevewYOut = previewYOut;
+        Log.d("zby log", "mPreviewXOut:" + mPreviewXOut + ",mPrevewYOut:" + mPrevewYOut+ ",mPreviewSize.width:" + mPreviewSize.width+ ",mPreviewSize.height:" + mPreviewSize.height);
+        mAspectRadio = mPreviewXOut > 0 ? (float) mFaceView.getWidth() / mPreviewSize.height
+                : (float) mFaceView.getHeight() / mPreviewSize.width;
+        //mAspectRadio = (float) mFaceView.getHeight() / (float) mPreviewSize.width;
         mPreviewData = null;
         clearFaceView();
     }
@@ -182,6 +190,12 @@ public class FaceDectectFunction implements Runnable {
                         if (faceCount == 0) {
                             clearFaceView();
                         } else {
+                            float dx = 0;
+                            if (mPreviewXOut > 0) {
+                                dx = -mPreviewXOut / 2;
+                            } else {
+                                dx = -mPrevewYOut / 2;
+                            }
                             ArrayList<RectF> faceList = faceData.getFaceRectList();
                             // 人脸转换成具体的坐标区域，并绘制到预览界面
                             for (int i = 0; i < faceCount; i++) {
@@ -190,6 +204,8 @@ public class FaceDectectFunction implements Runnable {
                                         (rectF.top * mAspectRadio),
                                         (rectF.right * mAspectRadio),
                                         (rectF.bottom * mAspectRadio));
+                                rectF.offset(mPreviewXOut,mPrevewYOut);
+                                rectF.inset(dx,dx);
                             }
                             mFaceView.setFaces(faceList);
                         }
