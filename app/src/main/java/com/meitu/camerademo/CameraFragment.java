@@ -232,57 +232,65 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
      */
     @Override
     protected void onFilterPictureTaken(final byte[] jpegData, final int exif, final int rotation) {
-        executor.execute(new Runnable() {
-            @Override
-            public void run() {
-                if (jpegData == null)
-                    return;
+        PictureData data = new PictureData();
+        data.pictureByte = jpegData;
+        data.exif = exif;
+        data.rotation = rotation;
+        executor.execute(new FastCaptureModeRunnable(data.clone()));
 
-                PictureData data = new PictureData();
-                data.pictureByte = jpegData;
-                data.exif = exif;
-                data.rotation = rotation;
+    }
 
-                Log.d("zby log", "rotation:" + rotation + ",exif:" + exif);
-                int[] sizes = getBitmapSize(data.pictureByte);
-                Bitmap bitmap =
-                    CameraUtil.getBitmapFromByte(data.pictureByte, isBackCameraOpen(), data.rotation, false,
-                        Math.max(sizes[0], sizes[1]));
-                Log.d("zby log", "bitmap:" + bitmap.getWidth() + ",height:" + bitmap.getHeight() + "," + rect.bottom
-                    + "," + rect.top);
-                if (BitmapUtils.isAvailableBitmap(bitmap)) {
-                    final Bitmap bitmapTemp =
+    /**
+     * 快速拍摄模式下的执行逻辑Runnable
+     */
+    private class FastCaptureModeRunnable implements Runnable {
+
+        private PictureData pictureData;
+
+        public FastCaptureModeRunnable(PictureData data) {
+
+            pictureData = data;
+        }
+
+        @Override
+        public void run() {
+            int[] sizes = getBitmapSize(pictureData.pictureByte);
+            Bitmap bitmap =
+                    CameraUtil.getBitmapFromByte(pictureData.pictureByte, isBackCameraOpen(), pictureData.rotation, false,
+                            Math.max(sizes[0], sizes[1]));
+              /*  Log.d("zby log", "bitmap:" + bitmap.getWidth() + ",height:" + bitmap.getHeight() + "," + rect.bottom
+                    + "," + rect.top);*/
+            if (BitmapUtils.isAvailableBitmap(bitmap)) {
+                final Bitmap bitmapTemp =
                         BitmapUtils.cropBitmap(bitmap, (int) (rect.left * bitmap.getWidth()),
-                            (int) (rect.top * bitmap.getHeight()),
-                            (int) ((rect.right - rect.left) * bitmap.getWidth()),
-                            (int) ((rect.bottom - rect.top) * bitmap.getHeight()), false);
-                    BitmapUtils.release(bitmap);
-                    data.bitmap = bitmapTemp;
-                    Log.d("zby log","stat:");
-                    long start = System.currentTimeMillis();
-                    saveBitmap(bitmapTemp, data.exif);
-                    long end = System.currentTimeMillis();
-                    Log.d("zby log","duration:"+(end - start));
-                    mActivity.runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            mIvAlumb.setImageBitmap(bitmapTemp);
-                            mPbSaveImage.setVisibility(View.GONE);
-                        }
-                    });
+                                (int) (rect.top * bitmap.getHeight()),
+                                (int) ((rect.right - rect.left) * bitmap.getWidth()),
+                                (int) ((rect.bottom - rect.top) * bitmap.getHeight()), false);
+                BitmapUtils.release(bitmap);
+                pictureData.bitmap = bitmapTemp;
+                // Log.d("zby log","stat:");
+                long start = System.currentTimeMillis();
+                saveBitmap(bitmapTemp, pictureData.exif);
+                long end = System.currentTimeMillis();
+                // Log.d("zby log","duration:"+(end - start));
+                mActivity.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        mIvAlumb.setImageBitmap(bitmapTemp);
+                        mPbSaveImage.setVisibility(View.GONE);
+                    }
+                });
 
-                } else {
-                    mActivity.runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            mPbSaveImage.setVisibility(View.GONE);
-                        }
-                    });
-                }
-
+            } else {
+                mActivity.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        mPbSaveImage.setVisibility(View.GONE);
+                    }
+                });
             }
-        });
 
+        }
     }
 
     /**
@@ -784,17 +792,17 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
         mLlBottomBar.setBackgroundColor(this.getResources().getColor(R.color.white));
 
         float x = (float) previewWidth / (2 * mPreviewXOut + params.width) * mPreviewXOut / previewWidth;
-        Log.d("zby log", "x:" + x);
+        //Log.d("zby log", "x:" + x);
 
         float y =
             (float) previewHeight / (2 * mPreviewYOut + params.height)
                 * (mPreviewYOut + topCoverHeight + minTopHeight - topMargin) / previewHeight;
-        Log.d("zby log", "y:" + y);
+        //Log.d("zby log", "y:" + y);
 
         float z =
             (float) previewHeight / (2 * mPreviewYOut + params.height)
                 * (mPreviewYOut + (bottomCoverHeight + minBottomHeight - bottomMargin)) / previewHeight;
-        Log.d("zby log", "z:" + z);
+        //Log.d("zby log", "z:" + z);
 
         rect.left = x;
         rect.top = y;
@@ -892,17 +900,17 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
         mLlBottomBar.setBackgroundColor(this.getResources().getColor(R.color.white));
 
         float x = (float) previewWidth / (2 * mPreviewXOut + params.width) * mPreviewXOut / previewWidth;
-        Log.d("zby log", "x:" + x);
+        //Log.d("zby log", "x:" + x);
 
         float y =
             (float) previewHeight / (2 * mPreviewYOut + params.height)
                 * (mPreviewYOut + topCoverHeight + minTopHeight - topMargin) / previewHeight;
-        Log.d("zby log", "y:" + y);
+        //Log.d("zby log", "y:" + y);
 
         float z =
             (float) previewHeight / (2 * mPreviewYOut + params.height)
                 * (mPreviewYOut + (bottomCoverHeight + minBottomHeight - bottomMargin)) / previewHeight;
-        Log.d("zby log", "z:" + z);
+        //Log.d("zby log", "z:" + z);
 
         rect.left = x;
         rect.top = y;
@@ -954,10 +962,10 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
         mViewBottomCover.setVisibility(View.GONE);
 
         float x = (float) previewWidth / (2 * mPreviewXOut + params.width) * mPreviewXOut / previewWidth;
-        Log.d("zby log", "x:" + x);
+        //Log.d("zby log", "x:" + x);
 
         float y = (float) previewHeight / (2 * mPreviewYOut + params.height) * mPreviewYOut / previewHeight;
-        Log.d("zby log", "y:" + y);
+        //Log.d("zby log", "y:" + y);
 
         rect.left = x;
         rect.top = y;

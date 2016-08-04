@@ -17,6 +17,15 @@ public class PictureData {
     //是否后置摄像头
     public  boolean isBackCameraOpen = false;
 
+    public PictureData clone(){
+        PictureData cameraDataBean = new PictureData();
+        cameraDataBean.pictureByte = this.pictureByte;
+        cameraDataBean.exif = this.exif;
+        cameraDataBean.rotation = this.rotation;
+        cameraDataBean.isBackCameraOpen = this.isBackCameraOpen;
+        return cameraDataBean;
+    }
+
     public byte[] getPictureByte() {
         return pictureByte;
     }
