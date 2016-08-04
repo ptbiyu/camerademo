@@ -31,6 +31,8 @@ import com.meitu.camera.util.ExifUtil;
 import com.meitu.camerademo.bean.PictureData;
 import com.meitu.camerademo.face.FaceDectectFunction;
 import com.meitu.camerademo.face.IFaceDectectFunction;
+import com.meitu.core.types.NativeBitmap;
+import com.meitu.core.util.CacheUtil;
 import com.meitu.library.util.bitmap.BitmapUtils;
 import com.meitu.library.util.device.DeviceUtils;
 import com.meitu.realtime.param.EffectParam;
@@ -40,13 +42,11 @@ import com.meitu.realtime.parse.OnlineEffectParser;
 import com.meitu.realtime.util.MTFilterOperation;
 
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -127,7 +127,12 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
         loadOnlineMaterialsParams();
         mScreenWidth = DeviceUtils.getScreenWidth();
         mScreenHeight = DeviceUtils.getScreenHeight();
-        executor = new ThreadPoolExecutor(10, 15, 200, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<Runnable>(10));
+        executor = new ThreadPoolExecutor(5, 5, 0, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>());
+        String orignalDirectory = Environment.getExternalStorageDirectory() + "/DCIM/CameraDemo/";
+        File file = new File(orignalDirectory);
+        if (!file.exists()) {
+            file.mkdirs();
+        }
         return view;
     }
 
@@ -239,9 +244,9 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
                 data.rotation = rotation;
 
                 Log.d("zby log", "rotation:" + rotation + ",exif:" + exif);
-                int[] sizes = getBitmapSize(jpegData);
+                int[] sizes = getBitmapSize(data.pictureByte);
                 Bitmap bitmap =
-                    CameraUtil.getBitmapFromByte(jpegData, isBackCameraOpen(), rotation, false,
+                    CameraUtil.getBitmapFromByte(data.pictureByte, isBackCameraOpen(), data.rotation, false,
                         Math.max(sizes[0], sizes[1]));
                 Log.d("zby log", "bitmap:" + bitmap.getWidth() + ",height:" + bitmap.getHeight() + "," + rect.bottom
                     + "," + rect.top);
@@ -253,8 +258,11 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
                             (int) ((rect.bottom - rect.top) * bitmap.getHeight()), false);
                     BitmapUtils.release(bitmap);
                     data.bitmap = bitmapTemp;
-                    saveBitmap(bitmapTemp, exif);
-
+                    Log.d("zby log","stat:");
+                    long start = System.currentTimeMillis();
+                    saveBitmap(bitmapTemp, data.exif);
+                    long end = System.currentTimeMillis();
+                    Log.d("zby log","duration:"+(end - start));
                     mActivity.runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
@@ -299,13 +307,9 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
      *
      * */
     public void saveBitmap(Bitmap bitmap, int exif) {
-        String orignalDirectory = Environment.getExternalStorageDirectory() + "/DCIM/CameraDemo/";
-        File file = new File(orignalDirectory);
-        if (!file.exists()) {
-            file.mkdirs();
-        }
-        final String orignalPath = orignalDirectory + "CameraDemo" + System.currentTimeMillis() + ".jpeg";
-        try {
+        final String orignalPath = Environment.getExternalStorageDirectory() + "/DCIM/CameraDemo/" + "CameraDemo" + System.currentTimeMillis() + ".jpeg";
+        Log.d("zby log","stat: 1");
+       /* try {
             FileOutputStream out = new FileOutputStream(new File(orignalPath));
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, out);
             out.flush();
@@ -314,7 +318,13 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
             e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
-        }
+        }*/
+
+        NativeBitmap nativeBitmap = NativeBitmap.createBitmap();
+        nativeBitmap.setImage(bitmap);
+
+        boolean save = CacheUtil.saveImageSD(nativeBitmap, orignalPath, 100);
+        Log.d("zby log","stat: 2");
         if (exif != -1) {
             ExifUtil.setExifOrientation(orignalPath, exif);
         }
