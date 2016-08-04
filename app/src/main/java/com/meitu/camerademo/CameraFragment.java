@@ -236,6 +236,12 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
         data.pictureByte = jpegData;
         data.exif = exif;
         data.rotation = rotation;
+        mActivity.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                mIvTakePicture.setEnabled(true);
+            }
+        });
         executor.execute(new FastCaptureModeRunnable(data.clone()));
 
     }
@@ -372,6 +378,7 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
             case R.id.iv_take_picture:
                 if (!isEnableProcessCamera())
                     return;
+                mIvTakePicture.setEnabled(false);
                 mPbSaveImage.setVisibility(View.VISIBLE);
                 takePicture(false, false);
                 break;
