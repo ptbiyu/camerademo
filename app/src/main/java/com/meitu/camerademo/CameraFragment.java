@@ -31,6 +31,7 @@ import com.meitu.camera.util.ExifUtil;
 import com.meitu.camerademo.bean.PictureData;
 import com.meitu.camerademo.face.FaceDectectFunction;
 import com.meitu.camerademo.face.IFaceDectectFunction;
+import com.meitu.library.util.bitmap.BitmapUtils;
 import com.meitu.library.util.device.DeviceUtils;
 import com.meitu.realtime.param.EffectParam;
 import com.meitu.realtime.param.FilterParamater;
@@ -39,6 +40,8 @@ import com.meitu.realtime.parse.OnlineEffectParser;
 import com.meitu.realtime.util.MTFilterOperation;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -58,8 +61,8 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
     private static final int CAMERA_RATIO_4_3 = 2;
     private static final int CAMERA_RATIO_FULL = 3;
 
-
-    private ImageView mIvBack, mIvFlash, mIvCameraSwitch, mIvCameraLevel, mIvCameraFilter, mIvCameraRationChange, mIvTakePicture;
+    private ImageView mIvBack, mIvFlash, mIvCameraSwitch, mIvCameraLevel, mIvCameraFilter, mIvCameraRationChange,
+        mIvTakePicture;
 
     /**
      *
@@ -110,13 +113,12 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
 
     private int mPreviewXOut, mPreviewYOut;
 
-    private RectF rect = new RectF(0, 0, 0, 0);
+    private RectF rect = new RectF(0, 0, 1, 1);
 
     /**
      * 用来执行连拍的线程池
      */
     private ThreadPoolExecutor executor = null;
-
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -210,7 +212,7 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
         mCameraConfig.mPreviewLayout = CameraConfig.PREVIEW_LAYOUT.CROP;// 设置预览模式 中间裁剪，所以有可能溢出
         mCameraConfig.canStartPreviewInJpegCallback = false;// 拍照后，如果要继续预览，设置为true
         mCameraConfig.isNeedAutoFocusBeforeTakePicture = true;// 拍照的时候是否需要自动对焦后再拍照
-        //mCameraConfig.isPreviewSizesOderByAsc = false;// 预览尺寸优先选最小的
+        // mCameraConfig.isPreviewSizesOderByAsc = false;// 预览尺寸优先选最小的
         mCommonCamearProcess = new CommonCameraProcess();
         mCameraConfig.mCameraProcess = mCommonCamearProcess;
         return mCameraConfig;
@@ -228,37 +230,94 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
         executor.execute(new Runnable() {
             @Override
             public void run() {
+                if (jpegData == null)
+                    return;
+
                 PictureData data = new PictureData();
                 data.pictureByte = jpegData;
                 data.exif = exif;
                 data.rotation = rotation;
 
-                final Bitmap bitmap = BitmapFactory.decodeByteArray(jpegData, 0, jpegData.length);
-                data.bitmap = bitmap;
-                //保存文件到存储卡中
-                String orignalDirectory = Environment.getExternalStorageDirectory() +
-                        "/DCIM/CameraDemo/";
-                File file = new File(orignalDirectory);
-                if (!file.exists()) {
-                    file.mkdirs();
-                }
-                final String orignalPath = orignalDirectory + "CameraDemo" + System.currentTimeMillis() + ".jpeg";
-                CameraUtil.addImage(jpegData, orignalPath);
-                if (exif != -1) {
-                    ExifUtil.setExifOrientation(orignalPath, exif);
-                }
+                Log.d("zby log", "rotation:" + rotation + ",exif:" + exif);
+                int[] sizes = getBitmapSize(jpegData);
+                Bitmap bitmap =
+                    CameraUtil.getBitmapFromByte(jpegData, isBackCameraOpen(), rotation, false,
+                        Math.max(sizes[0], sizes[1]));
+                Log.d("zby log", "bitmap:" + bitmap.getWidth() + ",height:" + bitmap.getHeight() + "," + rect.bottom
+                    + "," + rect.top);
+                if (BitmapUtils.isAvailableBitmap(bitmap)) {
+                    final Bitmap bitmapTemp =
+                        BitmapUtils.cropBitmap(bitmap, (int) (rect.left * bitmap.getWidth()),
+                            (int) (rect.top * bitmap.getHeight()),
+                            (int) ((rect.right - rect.left) * bitmap.getWidth()),
+                            (int) ((rect.bottom - rect.top) * bitmap.getHeight()), false);
+                    BitmapUtils.release(bitmap);
+                    data.bitmap = bitmapTemp;
+                    saveBitmap(bitmapTemp, exif);
 
-                mActivity.runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        mIvAlumb.setImageBitmap(bitmap);
-                        mPbSaveImage.setVisibility(View.GONE);
-                    }
-                });
+                    mActivity.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            mIvAlumb.setImageBitmap(bitmapTemp);
+                            mPbSaveImage.setVisibility(View.GONE);
+                        }
+                    });
+
+                } else {
+                    mActivity.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            mPbSaveImage.setVisibility(View.GONE);
+                        }
+                    });
+                }
 
             }
         });
 
+    }
+
+    /**
+     * 获取bitmap大小
+     *
+     * @param data
+     * @return
+     */
+    public static int[] getBitmapSize(byte[] data) {
+        if (data == null) {
+            return null;
+        }
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inJustDecodeBounds = true;
+        BitmapFactory.decodeByteArray(data, 0, data.length, options);
+        return new int[] {options.outWidth, options.outHeight};
+    }
+
+    /**
+     * 保存图片到存储卡中
+     *
+     *
+     * */
+    public void saveBitmap(Bitmap bitmap, int exif) {
+        String orignalDirectory = Environment.getExternalStorageDirectory() + "/DCIM/CameraDemo/";
+        File file = new File(orignalDirectory);
+        if (!file.exists()) {
+            file.mkdirs();
+        }
+        final String orignalPath = orignalDirectory + "CameraDemo" + System.currentTimeMillis() + ".jpeg";
+        try {
+            FileOutputStream out = new FileOutputStream(new File(orignalPath));
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, out);
+            out.flush();
+            out.close();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        if (exif != -1) {
+            ExifUtil.setExifOrientation(orignalPath, exif);
+        }
     }
 
     @Override
@@ -266,8 +325,8 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
         // 初始化时没有任何效果
         mFilterparameter = new FilterParamater();
         mEffectParam =
-                new EffectParam(0, 0, new MTFilterOperation(false, false, false),
-                        EffectParam.RealFilterTargetType.MT_TAKE_PHOTO, 0.8f);
+            new EffectParam(0, 0, new MTFilterOperation(false, false, false),
+                EffectParam.RealFilterTargetType.MT_TAKE_PHOTO, 0.8f);
         return mEffectParam;
     }
 
@@ -293,6 +352,8 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
                 changeCameraRatio();
                 break;
             case R.id.iv_take_picture:
+                if (!isEnableProcessCamera())
+                    return;
                 mPbSaveImage.setVisibility(View.VISIBLE);
                 takePicture(false, false);
                 break;
@@ -305,13 +366,13 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
     private void setCameraBeautyFilter() {
         mCurrentFilterId = mFliterIds[(++mCurrentFilterIndex) % mFliterIds.length];
         mEffectParam =
-                new EffectParam(getOnlineMaterialsParam(), new MTFilterOperation(true, true, true),
-                        EffectParam.RealFilterTargetType.MT_TAKE_PHOTO);
+            new EffectParam(getOnlineMaterialsParam(), new MTFilterOperation(true, true, true),
+                EffectParam.RealFilterTargetType.MT_TAKE_PHOTO);
 
-        //使用这个方法切换滤镜没有暗角效果？
-      /*  mEffectParam =
-                new EffectParam(mCurrentFilterId,0, new MTFilterOperation(true, true, true),
-                        EffectParam.RealFilterTargetType.MT_TAKE_PHOTO,1f);*/
+        // 使用这个方法切换滤镜没有暗角效果？
+        /*  mEffectParam =
+                  new EffectParam(mCurrentFilterId,0, new MTFilterOperation(true, true, true),
+                          EffectParam.RealFilterTargetType.MT_TAKE_PHOTO,1f);*/
         changeFilter(mEffectParam);
     }
 
@@ -322,8 +383,8 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
         mCurrentBeautyLevel = (mCurrentBeautyLevel + 1) % 7;
         Toast.makeText(mActivity, "Beauty Level:" + (mCurrentBeautyLevel + 1), Toast.LENGTH_LONG).show();
         mEffectParam =
-                new EffectParam(0, 0, new MTFilterOperation(true, false, false),
-                        EffectParam.RealFilterTargetType.MT_TAKE_PHOTO, 0.8f);
+            new EffectParam(0, 0, new MTFilterOperation(true, false, false),
+                EffectParam.RealFilterTargetType.MT_TAKE_PHOTO, 0.8f);
         changeFilter(mEffectParam);
         mFilterparameter.int_value = mCurrentBeautyLevel;
         changeFilterParamater(mFilterparameter);
@@ -420,7 +481,6 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
         }
         return onlineMaterialsParam;
     }
-
 
     private class CommonCameraProcess implements CameraProcess {
         @Override
@@ -527,7 +587,7 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
         for (CameraSize cameraSize : (ArrayList<CameraSize>) arrayList) {
 
             if ((float) cameraSize.width / cameraSize.height == bestPreviewRatio
-                    && cameraSize.width * cameraSize.height <= mScreenWidth * mScreenHeight) {
+                && cameraSize.width * cameraSize.height <= mScreenWidth * mScreenHeight) {
                 previewSize = cameraSize;
                 break;
             }
@@ -549,7 +609,7 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
 
         ArrayList<Camera.Size> removeSizes = new ArrayList<>();
         for (Camera.Size previewSize : previewSizes) {
-            //   Log.d("zby log", "preview size = " + previewSize.width + "," + previewSize.height);
+            // Log.d("zby log", "preview size = " + previewSize.width + "," + previewSize.height);
             if (previewSize.width * previewSize.height > mScreenWidth * mScreenHeight) {
                 removeSizes.add(previewSize);
             }
@@ -559,8 +619,8 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
             previewSizes.remove(removeSizes);
         }
 
-        float bestPreviewRatio = !isFrontCameraOpen() && mCurrentRatio == CAMERA_RATIO_FULL ?
-                mScreenHeight / mScreenWidth : 4f / 3;
+        float bestPreviewRatio =
+            !isFrontCameraOpen() && mCurrentRatio == CAMERA_RATIO_FULL ? mScreenHeight / mScreenWidth : 4f / 3;
 
         CameraSize bestPictureSize = null;
         float poor = 0.0001f;
@@ -574,7 +634,7 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
 
                     for (Camera.Size previewSize : previewSizes) {
                         if ((float) previewSize.height / previewSize.width == (float) pictureSize.height
-                                / pictureSize.width) {
+                            / pictureSize.width) {
                             // Log.d("zby log", "best preview size = " + previewSize.width + "," + previewSize.height);
                             find = true;
                             break;
@@ -597,8 +657,8 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
     @Override
     public void onEvent(PreviewFrameLayoutEvent previewFrameLayoutEvent) {
         super.onEvent(previewFrameLayoutEvent);
-        //但预览控件的尺寸发生变化的时候会回调
-        //设置  mCameraConfig.mPreviewLayout = CameraConfig.PREVIEW_LAYOUT.INSIDE 才会触发预览控件大小发生变化
+        // 但预览控件的尺寸发生变化的时候会回调
+        // 设置 mCameraConfig.mPreviewLayout = CameraConfig.PREVIEW_LAYOUT.INSIDE 才会触发预览控件大小发生变化
     }
 
     @Override
@@ -612,6 +672,11 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
     }
 
     private void resetCameraPreviewSize() {
+        if (isFrontCameraOpen()) {
+            mIvFlash.setVisibility(View.GONE);
+        } else {
+            mIvFlash.setVisibility(View.VISIBLE);
+        }
         switch (mCurrentRatio) {
             case CAMERA_RATIO_1_1:
                 changeUi11();
@@ -635,24 +700,28 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
         int previewWidth = previewSize.height;
         int previewHeight = previewSize.width;
 
-        //计算预览框的大小和偏移量
+        // 计算预览框的大小和偏移量
         RelativeLayout.LayoutParams params = (RelativeLayout.LayoutParams) mCameraPreviewLayout.getLayoutParams();
         params.width = mScreenWidth;
         params.height = mScreenWidth * previewHeight / previewWidth;
 
         int minBottomHeight = mActivity.getResources().getDimensionPixelSize(R.dimen.camera_bottom_min_height);
         int minTopHeight = mActivity.getResources().getDimensionPixelSize(R.dimen.camera_top_height);
-        //计算预览框的偏移量
-        int dy = mScreenHeight - params.height - minBottomHeight;
-        if (dy > 0) {
-            if (dy > minTopHeight) {
-                dy = minTopHeight;
+        // 计算预览框的偏移量
+        int topMargin = mScreenHeight - params.height - minBottomHeight;
+        if (topMargin > 0) {
+            if (topMargin > minTopHeight) {
+                topMargin = minTopHeight;
             }
         } else {
-            dy = 0;
+            topMargin = 0;
         }
-        params.topMargin = dy;
-        params.bottomMargin = -dy;
+        int bottomMargin = mScreenHeight - params.height - topMargin;
+        if (bottomMargin < 0) {
+            bottomMargin = 0;
+        }
+        params.topMargin = topMargin;
+        params.bottomMargin = bottomMargin;
         mCameraPreviewLayout.setLayoutParams(params);
 
         float previewLayoutRatio = params.height / mScreenWidth;
@@ -672,14 +741,14 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
             mPreviewYOut = 0;
         }
 
-        //计算顶部遮盖和底部这概览的高度
+        // 计算顶部遮盖和底部这概览的高度
         int overSumHegiht = mScreenHeight - mScreenWidth - minTopHeight - minBottomHeight;
 
         if (overSumHegiht < 0) {
             overSumHegiht = 0;
         }
 
-        //求出扣除预览、顶部栏和底部栏之外的剩余高度，3等分，顶部这概览三分之一，底部这概览三分之二
+        // 求出扣除预览、顶部栏和底部栏之外的剩余高度，3等分，顶部这概览三分之一，底部这概览三分之二
         int topCoverHeight = overSumHegiht / 3;
         int bottomCoverHeight = topCoverHeight * 2;
 
@@ -704,7 +773,26 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
         mRlTopBar.setBackgroundColor(this.getResources().getColor(R.color.white));
         mLlBottomBar.setBackgroundColor(this.getResources().getColor(R.color.white));
 
-        //Log.d("zby log", "dy:" + dy + ",topCoverHeight:" + topCoverHeight + ",bottomCoverHeight:" + bottomCoverHeight);
+        float x = (float) previewWidth / (2 * mPreviewXOut + params.width) * mPreviewXOut / previewWidth;
+        Log.d("zby log", "x:" + x);
+
+        float y =
+            (float) previewHeight / (2 * mPreviewYOut + params.height)
+                * (mPreviewYOut + topCoverHeight + minTopHeight - topMargin) / previewHeight;
+        Log.d("zby log", "y:" + y);
+
+        float z =
+            (float) previewHeight / (2 * mPreviewYOut + params.height)
+                * (mPreviewYOut + (bottomCoverHeight + minBottomHeight - bottomMargin)) / previewHeight;
+        Log.d("zby log", "z:" + z);
+
+        rect.left = x;
+        rect.top = y;
+        rect.right = 1 - x;
+        rect.bottom = 1 - z;
+
+        // Log.d("zby log", "dy:" + dy + ",topCoverHeight:" + topCoverHeight + ",bottomCoverHeight:" +
+        // bottomCoverHeight);
 
     }
 
@@ -718,24 +806,28 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
         int previewWidth = previewSize.height;
         int previewHeight = previewSize.width;
 
-        //计算预览框的大小和偏移量
+        // 计算预览框的大小和偏移量
         RelativeLayout.LayoutParams params = (RelativeLayout.LayoutParams) mCameraPreviewLayout.getLayoutParams();
         params.width = mScreenWidth;
         params.height = mScreenWidth * previewHeight / previewWidth;
 
         int minBottomHeight = mActivity.getResources().getDimensionPixelSize(R.dimen.camera_bottom_min_height);
         int minTopHeight = mActivity.getResources().getDimensionPixelSize(R.dimen.camera_top_height);
-        //计算预览框的偏移量
-        int dy = mScreenHeight - params.height - minBottomHeight;
-        if (dy > 0) {
-            if (dy > minTopHeight) {
-                dy = minTopHeight;
+        // 计算预览框的偏移量
+        int topMargin = mScreenHeight - params.height - minBottomHeight;
+        if (topMargin > 0) {
+            if (topMargin > minTopHeight) {
+                topMargin = minTopHeight;
             }
         } else {
-            dy = 0;
+            topMargin = 0;
         }
-        params.topMargin = dy;
-        params.bottomMargin = -dy;
+        int bottomMargin = mScreenHeight - params.height - topMargin;
+        if (bottomMargin < 0) {
+            bottomMargin = 0;
+        }
+        params.topMargin = topMargin;
+        params.bottomMargin = bottomMargin;
         mCameraPreviewLayout.setLayoutParams(params);
 
         float previewLayoutRatio = params.height / mScreenWidth;
@@ -755,15 +847,14 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
             mPreviewYOut = 0;
         }
 
-
-        //计算顶部遮盖和底部这概览的高度
+        // 计算顶部遮盖和底部这概览的高度
         int overSumHegiht = mScreenHeight - mScreenWidth / 3 * 4 - minTopHeight - minBottomHeight;
 
         if (overSumHegiht < 0) {
             overSumHegiht = 0;
         }
 
-        //求出扣除预览、顶部栏和底部栏之外的剩余高度，3等分，顶部这概览三分之一，底部这概览三分之二
+        // 求出扣除预览、顶部栏和底部栏之外的剩余高度，3等分，顶部这概览三分之一，底部这概览三分之二
         int topCoverHeight = overSumHegiht / 3;
         int bottomCoverHeight = topCoverHeight * 2;
 
@@ -773,6 +864,7 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
             mViewTopCover.setLayoutParams(topParams);
             mViewTopCover.setVisibility(View.VISIBLE);
         } else {
+            topCoverHeight = 0;
             mViewTopCover.setVisibility(View.GONE);
         }
 
@@ -782,13 +874,33 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
             mViewBottomCover.setLayoutParams(bottomParams);
             mViewBottomCover.setVisibility(View.VISIBLE);
         } else {
+            bottomCoverHeight = 0;
             mViewBottomCover.setVisibility(View.GONE);
         }
 
         mRlTopBar.setBackgroundColor(this.getResources().getColor(R.color.white));
         mLlBottomBar.setBackgroundColor(this.getResources().getColor(R.color.white));
 
-        // Log.d("zby log", "changeUi43 dy:" + dy + ",topCoverHeight:" + topCoverHeight + ",bottomCoverHeight:" + bottomCoverHeight);
+        float x = (float) previewWidth / (2 * mPreviewXOut + params.width) * mPreviewXOut / previewWidth;
+        Log.d("zby log", "x:" + x);
+
+        float y =
+            (float) previewHeight / (2 * mPreviewYOut + params.height)
+                * (mPreviewYOut + topCoverHeight + minTopHeight - topMargin) / previewHeight;
+        Log.d("zby log", "y:" + y);
+
+        float z =
+            (float) previewHeight / (2 * mPreviewYOut + params.height)
+                * (mPreviewYOut + (bottomCoverHeight + minBottomHeight - bottomMargin)) / previewHeight;
+        Log.d("zby log", "z:" + z);
+
+        rect.left = x;
+        rect.top = y;
+        rect.right = 1 - x;
+        rect.bottom = 1 - z;
+
+        // Log.d("zby log", "changeUi43 dy:" + dy + ",topCoverHeight:" + topCoverHeight + ",bottomCoverHeight:" +
+        // bottomCoverHeight);
 
     }
 
@@ -802,7 +914,7 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
         int previewWidth = previewSize.height;
         int previewHeight = previewSize.width;
 
-        //计算预览框的大小和偏移量
+        // 计算预览框的大小和偏移量
         RelativeLayout.LayoutParams params = (RelativeLayout.LayoutParams) mCameraPreviewLayout.getLayoutParams();
         params.width = mScreenWidth;
         params.height = mScreenHeight;
@@ -831,20 +943,16 @@ public class CameraFragment extends FilterCameraFragment implements View.OnClick
         mViewTopCover.setVisibility(View.GONE);
         mViewBottomCover.setVisibility(View.GONE);
 
-        float x = 0f, y = 0f;
-        if (mPreviewXOut > 0) {
-            x = (float) previewWidth / (2 * mPreviewXOut + mScreenWidth) * mPreviewXOut / previewWidth;
-            Log.d("zby log", "x:" + x);
-        }
+        float x = (float) previewWidth / (2 * mPreviewXOut + params.width) * mPreviewXOut / previewWidth;
+        Log.d("zby log", "x:" + x);
 
-        if (mPreviewYOut > 0) {
-            y = (float) previewHeight / (2 * mPreviewYOut + mScreenHeight) * mPreviewYOut / previewHeight;
-            Log.d("zby log", "y:" + y);
-        }
+        float y = (float) previewHeight / (2 * mPreviewYOut + params.height) * mPreviewYOut / previewHeight;
+        Log.d("zby log", "y:" + y);
 
         rect.left = x;
         rect.top = y;
-       // rect.right =
+        rect.right = 1 - x;
+        rect.bottom = 1 - y;
     }
 
 }
